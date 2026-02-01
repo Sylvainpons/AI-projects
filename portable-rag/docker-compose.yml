@@ -1,0 +1,37 @@
+services:
+  # 1. La Base Vectorielle (Qdrant)
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: rag-qdrant
+    ports:
+      - "6333:6333" # Port pour l'API
+      - "6334:6334" # Port pour gRPC
+    volumes:
+      - ./qdrant_data:/qdrant/storage # Persistance des données
+
+  # 2. Le Backend (FastAPI + Agent)
+  backend:
+    build: ./backend
+    container_name: rag-backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend/app:/app/app
+      # ON CHANGE ICI : Utilisation de HOST_PATH défini dans le .env
+      - ${HOST_PATH}:/mnt/host_files:ro 
+    environment:
+      - QDRANT_URL=http://qdrant:6333
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - qdrant
+
+  # 3. Ollama (Optionnel pour l'instant, on peut utiliser celui installé sur ta machine
+  # pour économiser les ressources Docker, mais voici la config si besoin)
+  # ollama:
+  #   image: ollama/ollama:latest
+  #   ports:
+  #     - "11434:11434"
+  #   volumes:
+  #     - ollama_storage:/root/.ollama

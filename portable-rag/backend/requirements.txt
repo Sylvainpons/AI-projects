@@ -1,0 +1,13 @@
+fastapi
+uvicorn
+# Le client officiel Qdrant
+qdrant-client
+# Langchain pour l'orchestration
+langchain
+langchain-community
+langchain-huggingface
+langchain-qdrant
+langchain-ollama
+# Pour lire les PDF
+pypdf
+fastembed
