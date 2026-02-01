@@ -1,12 +1,20 @@
 import os
 import threading
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional
 from app.rag import ingest_file, query_rag, BASE_MOUNT_PATH
 
 app = FastAPI(title="Portable RAG API")
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # En prod, on mettrait ["http://localhost:3000"]
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 # Le point de montage dans le conteneur (fixe)
 
 # Modèle de données pour la requête (ce que le Frontend envoie)
