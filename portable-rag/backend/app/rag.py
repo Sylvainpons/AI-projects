@@ -7,6 +7,8 @@ from qdrant_client import QdrantClient
 from qdrant_client.http import models
 from langchain_core.retrievers import BaseRetriever
 from langchain_ollama import ChatOllama
+from langchain_openai import ChatOpenAI
+from langchain_groq import ChatGroq
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
@@ -90,60 +92,59 @@ def ingest_file(file_path: str):
     
     return {"status": "success", "chunks_created": len(chunks)}
 
-def query_rag(query_text: str):
+def query_rag(query_text: str, mode: str = "local"):
     """
-    RAG Complet : Recherche + Génération par LLM
+    RAG Hybride : Switch entre Ollama (Local) et Groq (Cloud)
     """
     vector_store = get_vector_store()
     retriever = vector_store.as_retriever(search_type="similarity", search_kwargs={"k": 3})
     
-    # 1. Récupération des documents pertinents
+    # 1. Récupération des docs
     docs = retriever.invoke(query_text)
-    
-    # Préparation du contexte sous forme de texte pour le LLM
     context_text = "\n\n".join([doc.page_content for doc in docs])
     
-    # 2. Configuration du LLM (Ollama sur l'hôte)
-    ollama_url = os.getenv("OLLAMA_BASE_URL", "http://host.docker.internal:11434")
+    # 2. CHOIX DU CERVEAU (LE SWITCH)
+    if mode == "cloud":
+        # Mode Groq (Nécessite GROQ_API_KEY dans le .env)
+        # On utilise Llama3-70b (Très intelligent et ultra rapide)
+        api_key = os.getenv("GROQ_API_KEY")
+        if not api_key:
+            return {"answer": "❌ Erreur : Clé GROQ_API_KEY manquante dans le .env", "sources": []}
+            
+        llm = ChatGroq(
+            model="llama-3.3-70b-versatile", 
+            temperature=0,
+            api_key=api_key
+        )
+        print("⚡ Mode: CLOUD (Groq LPU)")
+    else:
+        # Mode Local (Ollama sur CPU)
+        ollama_url = os.getenv("OLLAMA_BASE_URL", "http://host.docker.internal:11434")
+        llm = ChatOllama(
+            model="mistral", 
+            base_url=ollama_url, 
+            temperature=0
+        )
+        print("🐢 Mode: LOCAL (Ollama CPU)")
+
+    # 3. Prompt et Génération
+    template = """Tu es un assistant expert. Utilise le contexte suivant pour répondre à la question.
+    Si tu ne sais pas, dis-le.
     
-    # On utilise un modèle léger et performant (mistral, llama3, ou phi)
-    llm = ChatOllama(
-        model="mistral", # Assure-toi d'avoir fait 'ollama pull mistral'
-        base_url=ollama_url,
-        temperature=0
-    )
-
-    # 3. Le Prompt (Les instructions au Cerveau)
-    template = """Tu es un assistant expert technique. 
-    Utilise le contexte suivant pour répondre à la question de l'utilisateur.
-    Si la réponse n'est pas dans le contexte, dis simplement que tu ne sais pas.
-    Réponds en français de manière professionnelle.
-
     Contexte:
     {context}
-
+    
     Question:
     {question}
     """
     prompt = ChatPromptTemplate.from_template(template)
-
-    # 4. Création de la chaîne (Chain) et exécution
     chain = prompt | llm | StrOutputParser()
     
     try:
         response_text = chain.invoke({"context": context_text, "question": query_text})
     except Exception as e:
-        response_text = f"Erreur de connexion au LLM (Ollama est-il lancé ?): {str(e)}"
+        return {"answer": f"Erreur lors de la génération ({mode}): {str(e)}", "sources": []}
 
-    # 5. On renvoie la réponse + les sources (pour la transparence)
-    results = []
-    for doc in docs:
-        results.append({
-            "source": doc.metadata.get("filename", "inconnu"),
-            "path": doc.metadata.get("source", "inconnu")
-        })
-        
-    return {
-        "answer": response_text,
-        "sources": results
-    }
+    results = [{"source": doc.metadata.get("filename"), "path": doc.metadata.get("source")} for doc in docs]
+    
+    return {"answer": response_text, "sources": results}

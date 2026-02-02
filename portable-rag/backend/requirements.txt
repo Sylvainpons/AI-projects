@@ -8,6 +8,8 @@ langchain-community
 langchain-huggingface
 langchain-qdrant
 langchain-ollama
+langchain-openai
+langchain-groq
 # Pour lire les PDF
 pypdf
 fastembed

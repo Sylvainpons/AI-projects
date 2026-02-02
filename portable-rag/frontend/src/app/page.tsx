@@ -2,11 +2,13 @@
 
 import { useState, useEffect, useRef } from "react";
 import { browseFiles, ingestPath, chatWithRag, FileItem, ChatMessage } from "@/src/utils/api";
-import { Folder, FileCode, FileText, HardDrive, Send, Loader2, Bot, User, ChevronLeft } from "lucide-react";
+import { Folder, FileCode, FileText, HardDrive, Send, Loader2, Bot, User, ChevronLeft,Zap, Cpu } from "lucide-react";
 import clsx from "clsx";
 import MarkdownRenderer from "@/src/components/MarkdownRenderer";
+
 export default function Home() {
   // --- STATE : Explorateur de Fichiers ---
+  const [isCloudMode, setIsCloudMode] = useState(false);
   const [currentPath, setCurrentPath] = useState(""); // Où sommes-nous ?
   const [files, setFiles] = useState<FileItem[]>([]); // Liste des fichiers
   const [selectedPath, setSelectedPath] = useState<string | null>(null); // Fichier sélectionné
@@ -88,7 +90,7 @@ export default function Home() {
     setIsChatting(true);
 
     try {
-      const res = await chatWithRag(userMsg);
+      const res = await chatWithRag(userMsg, isCloudMode ? "cloud" : "local");
       // Ajout réponse bot
       setMessages(prev => [...prev, { 
         role: "assistant", 
@@ -166,10 +168,41 @@ export default function Home() {
       {/* --- DROITE : Chat Interface --- */}
       <section className="flex-1 flex flex-col bg-zinc-950">
         {/* Header Chat */}
-        <div className="h-14 border-b border-zinc-800 flex items-center px-6 bg-zinc-900/30">
-          <span className="w-2 h-2 rounded-full bg-green-500 mr-3 shadow-[0_0_8px_rgba(34,197,94,0.6)]"></span>
-          <h1 className="font-semibold text-zinc-200">AI Assistant (Local)</h1>
-          <span className="ml-auto text-xs text-zinc-600 border border-zinc-800 px-2 py-1 rounded">Model: Mistral (CPU)</span>
+        <div className="h-14 border-b border-zinc-800 flex items-center justify-between px-6 bg-zinc-900/30">
+          
+          {/* Titre */}
+          <div className="flex items-center gap-3">
+             <div className={clsx("w-2 h-2 rounded-full shadow-[0_0_8px]", isCloudMode ? "bg-orange-500 shadow-orange-500/50" : "bg-green-500 shadow-green-500/50")}></div>
+             <div>
+               <h1 className="font-semibold text-zinc-200 text-sm">Portable RAG</h1>
+               <p className="text-[10px] text-zinc-500 font-mono">
+                 {isCloudMode ? "Moteur: Llama3-70b (Groq Cloud)" : "Moteur: Mistral (Local CPU)"}
+               </p>
+             </div>
+          </div>
+
+          {/* Le Bouton Switch */}
+          <button 
+            onClick={() => setIsCloudMode(!isCloudMode)}
+            className={clsx(
+              "flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all text-xs font-medium",
+              isCloudMode 
+                ? "bg-orange-900/20 border-orange-500/30 text-orange-200 hover:bg-orange-900/40" 
+                : "bg-zinc-800 border-zinc-700 text-zinc-300 hover:bg-zinc-700"
+            )}
+          >
+            {isCloudMode ? (
+              <>
+                <span>Mode Turbo</span>
+                <Zap className="w-3 h-3 fill-orange-400 text-orange-400" />
+              </>
+            ) : (
+              <>
+                <span>Mode Privé</span>
+                <Cpu className="w-3 h-3" />
+              </>
+            )}
+          </button>
         </div>
 
         {/* Zone des messages */}

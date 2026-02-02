@@ -37,12 +37,13 @@ export const ingestPath = async (path: string) => {
 };
 
 // 3. Discuter
-export const chatWithRag = async (question: string) => {
+export const chatWithRag = async (question: string, mode: "local" | "cloud") => {
   const res = await fetch(`${API_BASE_URL}/api/chat`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ question }),
+    body: JSON.stringify({ question, mode }), // <-- Envoi du mode
   });
   if (!res.ok) throw new Error("Erreur du Chatbot");
   return res.json();
 };
+
